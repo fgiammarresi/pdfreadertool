@@ -1,39 +1,40 @@
 import subprocess
 import time
-from pdfminer.high_level import extract_text_to_fp, extract_pages
-from pdfminer.layout import LTTextContainer, LTImage, LTTable
-from io import StringIO
+from pdfminer.high_level import extract_pages
+from pdfminer.layout import LTTextContainer, LTImage, LTTextBoxHorizontal
 from docx import Document
 from docx.shared import Inches
-from google.colab import files  # Solo per l'esecuzione su Colab
-
-# Installazione delle librerie (verrà eseguita ogni volta su Colab)
-try:
-    import pdfminer
-except ImportError:
-    subprocess.run(['pip', 'install', 'pdfminer.six'], check=True)
-try:
-    import docx
-except ImportError:
-    subprocess.run(['pip', 'install', 'python-docx'], check=True)
+import os  # Importa il modulo os
 
 def leggi_pdf(percorso_file):
     """
-    Legge il contenuto di un file PDF, estraendo testo, tabelle e gestendo le immagini.
+    Legge il contenuto di un file PDF, estraendo testo, tabelle (migliorate) e gestendo le immagini.
     Restituisce una lista di elementi estratti.
     """
     elementi = []
     try:
         for page_layout in extract_pages(percorso_file):
+            righe_tabella = {}  # Dizionario per tracciare il testo nelle righe
             for element in page_layout:
-                if isinstance(element, LTTextContainer):
+                if isinstance(element, LTTextContainer) and not isinstance(element, LTTextBoxHorizontal):
                     elementi.append({'type': 'text', 'content': element.get_text()})
-                elif isinstance(element, LTTable):
-                    # Qui dovremmo implementare la logica per estrarre i dati dalla tabella
-                    elementi.append({'type': 'table', 'content': element})
+                elif isinstance(element, LTTextBoxHorizontal):
+                    y0 = round(element.bbox[1], 2)  # Arrotonda la coordinata y per raggruppare il testo nella stessa riga
+                    if y0 not in righe_tabella:
+                        righe_tabella[y0] = []
+                    righe_tabella[y0].append(element)
                 elif isinstance(element, LTImage):
-                    # Qui dovremmo implementare la logica per gestire le immagini
                     elementi.append({'type': 'image', 'content': element})
+
+            # Ordina il testo in ogni riga per coordinata x
+            for y in righe_tabella:
+                righe_tabella[y] = sorted(righe_tabella[y], key=lambda x: x.bbox[0])
+
+            # Costruisci le righe della tabella (semplice esempio)
+            for y in sorted(righe_tabella.keys(), reverse=True):  # Ordina le righe dalla cima alla fine della pagina
+                riga_testo = " ".join(elemento.get_text().strip() for elemento in righe_tabella[y])
+                elementi.append({'type': 'table_row', 'content': riga_testo})  # Aggiungi come riga di tabella
+
     except FileNotFoundError:
         print(f"Errore: File non trovato nel percorso '{percorso_file}'")
         return None
@@ -47,27 +48,24 @@ def crea_docx(elementi, nome_file_output="output.docx"):
     for elemento in elementi:
         if elemento['type'] == 'text':
             documento.add_paragraph(elemento['content'])
-        elif elemento['type'] == 'table':
-            # Implementazione base per le tabelle (potrebbe richiedere miglioramenti)
-            num_rows = len(elemento['content'].rows)
-            num_cols = len(elemento['content'].cols)
-            table = documento.add_table(rows=num_rows, cols=num_cols)
-            for i, row in enumerate(elemento['content'].rows):
-                for j, cell in enumerate(row.cells):
-                    table.cell(i, j).text = cell.text
+        elif elemento['type'] == 'table_row':
+            documento.add_paragraph(elemento['content'])  # Aggiungi semplicemente la riga di testo
         elif elemento['type'] == 'image':
             # Per ora, proviamo ad aggiungere l'immagine se abbiamo il nome del file
             if hasattr(elemento['content'], 'stream') and hasattr(elemento['content'], 'name'):
-                with open(elemento['content'].name, 'wb') as f:
-                    f.write(elemento['content'].stream.read())
-                documento.add_picture(elemento['content'].name, width=Inches(4.0)) # Regola la larghezza a piacimento
-                # Potrebbe essere necessario pulire i file immagine temporanei
+                try:
+                    with open(elemento['content'].name, 'wb') as f:
+                        f.write(elemento['content'].stream.read())
+                    documento.add_picture(elemento['content'].name, width=Inches(4.0))  # Regola la larghezza a piacimento
+                    os.remove(elemento['content'].name)  # Pulisci il file temporaneo
+                except Exception as e:
+                    print(f"Errore nell'aggiungere l'immagine: {e}")
             else:
                 documento.add_paragraph("Immagine non visualizzata.")
 
     documento.save(nome_file_output)
     print(f"File DOCX '{nome_file_output}' creato con successo.")
-    files.download(nome_file_output) # Funziona solo in Colab
+    # files.download(nome_file_output) # Funziona solo in Colab (rimosso)
 
 def main():
     percorso_pdf = input("Inserisci il percorso del file PDF da elaborare: ")
