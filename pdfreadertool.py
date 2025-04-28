@@ -45,33 +45,40 @@ def crea_docx(elementi, nome_file_output="output.docx"):
     Crea un file DOCX dagli elementi estratti dal PDF.
     """
     documento = Document()
-    for elemento in elementi:
-        if elemento['type'] == 'text':
-            documento.add_paragraph(elemento['content'])
-        elif elemento['type'] == 'table_row':
-            documento.add_paragraph(elemento['content'])  # Aggiungi semplicemente la riga di testo
-        elif elemento['type'] == 'image':
-            # Per ora, proviamo ad aggiungere l'immagine se abbiamo il nome del file
-            if hasattr(elemento['content'], 'stream') and hasattr(elemento['content'], 'name'):
-                try:
-                    with open(elemento['content'].name, 'wb') as f:
-                        f.write(elemento['content'].stream.read())
-                    documento.add_picture(elemento['content'].name, width=Inches(4.0))  # Regola la larghezza a piacimento
-                    os.remove(elemento['content'].name)  # Pulisci il file temporaneo
-                except Exception as e:
-                    print(f"Errore nell'aggiungere l'immagine: {e}")
-            else:
-                documento.add_paragraph("Immagine non visualizzata.")
+    try:
+        for elemento in elementi:
+            if elemento['type'] == 'text':
+                documento.add_paragraph(elemento['content'])
+            elif elemento['type'] == 'table_row':
+                documento.add_paragraph(elemento['content'])  # Aggiungi semplicemente la riga di testo
+            elif elemento['type'] == 'image':
+                # Per ora, proviamo ad aggiungere l'immagine se abbiamo il nome del file
+                if hasattr(elemento['content'], 'stream') and hasattr(elemento['content'], 'name'):
+                    try:
+                        with open(elemento['content'].name, 'wb') as f:
+                            f.write(elemento['content'].stream.read())
+                        documento.add_picture(elemento['content'].name, width=Inches(4.0))  # Regola la larghezza a piacimento
+                        os.remove(elemento['content'].name)  # Pulisci il file temporaneo
+                    except Exception as e:
+                        print(f"Errore nell'aggiungere l'immagine: {e}")
+                else:
+                    documento.add_paragraph("Immagine non visualizzata.")
 
-    documento.save(nome_file_output)
-    print(f"File DOCX '{nome_file_output}' creato con successo.")
+        documento.save(nome_file_output)
+        print(f"File DOCX '{nome_file_output}' creato con successo.")
 
-    # Modifica importante: restituiamo il percorso assoluto del file.
-    # Questo aiuta a evitare problemi con Colab e i percorsi relativi.
-    if nome_file_output:
-        return os.path.abspath(nome_file_output)  # Ottieni il percorso assoluto
-    else:
-        print("Errore: Il nome del file di output è vuoto.")
+        # Modifica importante: restituiamo il percorso assoluto del file.
+        # Questo aiuta a evitare problemi con Colab e i percorsi relativi.
+        if nome_file_output:
+            percorso_assoluto = os.path.abspath(nome_file_output)
+            print(f"DEBUG (crea_docx): Percorso assoluto: {percorso_assoluto}")  # AGGIUNTO
+            return percorso_assoluto
+        else:
+            print("Errore: Il nome del file di output è vuoto.")
+            return None
+
+    except Exception as e:
+        print(f"DEBUG (crea_docx): Errore durante la creazione del DOCX: {e}")  # AGGIUNTO
         return None
 
 def main():
