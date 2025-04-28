@@ -67,6 +67,17 @@ def crea_docx(elementi, nome_file_output="output.docx"):
     print(f"File DOCX '{nome_file_output}' creato con successo.")
     # files.download(nome_file_output) # Funziona solo in Colab (rimosso)
 
+    # Aggiungiamo un controllo per assicurarci che nome_file_output sia valido.
+    # Questo è un controllo di sicurezza per prevenire errori successivi.
+    if nome_file_output:
+        # Se nome_file_output ha un valore (cioè, non è vuoto o None), lo restituiamo.
+        return nome_file_output
+    else:
+        # Altrimenti, se nome_file_output è vuoto o None, stampiamo un messaggio di errore
+        # per segnalare il problema e restituiamo None.
+        print("Errore: Il nome del file di output è vuoto.")
+        return None
+
 def main():
     percorso_pdf = input("Inserisci il percorso del file PDF da elaborare: ")
 
