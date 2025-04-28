@@ -2,9 +2,9 @@ import subprocess
 import time
 from pdfminer.high_level import extract_pages
 from pdfminer.layout import LTTextContainer, LTImage, LTTextBoxHorizontal
+import os  # Importa il modulo os, necessario per ottenere il percorso assoluto
 from docx import Document
 from docx.shared import Inches
-import os  # Importa il modulo os, necessario per ottenere il percorso assoluto
 
 def leggi_pdf(percorso_file):
     """
@@ -64,21 +64,17 @@ def crea_docx(elementi, nome_file_output="output.docx"):
                 else:
                     documento.add_paragraph("Immagine non visualizzata.")
 
-        documento.save(nome_file_output)
-        print(f"File DOCX '{nome_file_output}' creato con successo.")
-
-        # Modifica importante: restituiamo il percorso assoluto del file.
-        # Questo aiuta a evitare problemi con Colab e i percorsi relativi.
-        if nome_file_output:
-            percorso_assoluto = os.path.abspath(nome_file_output)
-            print(f"DEBUG (crea_docx): Percorso assoluto: {percorso_assoluto}")  # AGGIUNTO
-            return percorso_assoluto
-        else:
-            print("Errore: Il nome del file di output è vuoto.")
+        try:
+            documento.save(nome_file_output)
+            print(f"File DOCX '{nome_file_output}' creato con successo.")
+        except Exception as save_error:
+            print(f"DEBUG (crea_docx): Errore durante il salvataggio del file: {save_error}")
             return None
 
+        return os.path.abspath(nome_file_output)  # Restituiamo il percorso assoluto
+
     except Exception as e:
-        print(f"DEBUG (crea_docx): Errore durante la creazione del DOCX: {e}")  # AGGIUNTO
+        print(f"DEBUG (crea_docx): Errore durante la creazione del DOCX: {e}")
         return None
 
 def main():
